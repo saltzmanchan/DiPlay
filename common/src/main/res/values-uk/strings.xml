@@ -647,6 +647,8 @@
     <string name="side_panel_full_screen">⤢ На весь екран</string>
     <string name="main_buffered_audio">Буферизована музика (експериментально)</string>
     <string name="main_buffered_audio_description">Застосунки, які це підтримують (наприклад, Apple Music), надсилають музику приблизно на дві хвилини наперед, тож короткі провали Wi-Fi не чути. Інші застосунки працюють як раніше. Перепідключає CarPlay.</string>
+    <string name="settings_native_bluetooth_handoff">Передати дзвінки та музику Bluetooth автомобіля в CarPlay (експериментально)</string>
+    <string name="settings_native_bluetooth_handoff_description">Поки працює бездротовий CarPlay, вимикає власний гучний зв’язок і Bluetooth-музику автомобіля для цього iPhone, щоб дзвінки лунали лише в CarPlay. Після завершення CarPlay вони повертаються. Потрібна магнітола, на якій adb працює від root без сполучення, наприклад Neta L. Застосовується під час наступного підключення.</string>
     <string name="settings_car_bluetooth_audio">Звук CarPlay через Bluetooth автомобіля (експериментально)</string>
     <string name="settings_car_bluetooth_audio_description">DiPlay не пропонує iPhone звук CarPlay, тому музика, навігація та дзвінки мають іти через Bluetooth-з’єднання iPhone з автомобілем. Залиште iPhone сполученим з автомобілем і виберіть Bluetooth джерелом звуку в автомобілі. Якщо звук іде з iPhone, вимкніть цей параметр. Перепідключає CarPlay.</string>
     <string name="call_echo_cancellation">Придушення луни у дзвінках (експериментально)</string>

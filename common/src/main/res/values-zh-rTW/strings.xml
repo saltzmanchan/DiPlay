@@ -689,6 +689,8 @@
     <string name="cluster_size_smallest">較小 · 地圖範圍較廣、細節較多</string>
     <string name="main_buffered_audio">緩衝音樂（實驗性）</string>
     <string name="main_buffered_audio_description">支援此功能的應用程式（例如 Apple Music）可預先傳送約兩分鐘的音樂，因此短暫的 Wi-Fi 中斷不會影響播放。其他應用程式仍使用一般串流。變更後會重新連線至 CarPlay。</string>
+    <string name="settings_native_bluetooth_handoff">CarPlay 期間接管車輛藍牙電話與音樂（實驗性）</string>
+    <string name="settings_native_bluetooth_handoff_description">無線 CarPlay 執行時，關閉車輛內建的藍牙免持與藍牙音樂與這支 iPhone 的連線，來電只在 CarPlay 中響鈴；CarPlay 結束後自動恢復。需要車機的 adb 以 root 執行且無需配對（例如哪吒 L）。下次連線時生效。</string>
     <string name="settings_car_bluetooth_audio">透過車輛藍牙播放 CarPlay 音訊（實驗性）</string>
     <string name="settings_car_bluetooth_audio_description">DiPlay 不向 iPhone 提供 CarPlay 音訊，因此音樂、導航和通話應透過 iPhone 與車輛的藍牙連線傳輸。請保持 iPhone 與車輛配對，並將車輛音源設為藍牙。如果聲音改從 iPhone 播放，請關閉此選項。變更後會重新連線至 CarPlay。</string>
     <string name="call_echo_cancellation">通話回音消除（實驗性）</string>

@@ -28,6 +28,7 @@ internal class AdbPacket(val command: Int, val arg0: Int, val arg1: Int, val pay
         const val STLS = 0x534c5453
 
         const val VERSION = 0x01000000
+        const val STLS_VERSION = 0x01000000
         const val MAX_PAYLOAD = 256 * 1024
         const val AUTH_TOKEN = 1
         const val AUTH_SIGNATURE = 2

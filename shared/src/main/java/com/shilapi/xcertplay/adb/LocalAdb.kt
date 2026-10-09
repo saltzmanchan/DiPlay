@@ -10,12 +10,15 @@ import java.net.Socket
 import java.net.SocketTimeoutException
 import java.security.KeyPair
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.net.ssl.SSLException
+import javax.net.ssl.SSLSocket
 
 /**
  * A shell on the head unit's own adbd ("ADB over network", 127.0.0.1:5555), for the few commands an
  * ordinary app may not run, such as switching the BYD cluster's navigation mode. Speaks the plain
- * ADB protocol (AOSP adb/protocol.txt); the TLS variant used by Android 11+ wireless debugging is
- * not supported.
+ * ADB protocol (AOSP adb/protocol.txt) and, on the wireless-debugging port, its TLS variant
+ * ([AdbTls]). TLS pairing codes are not supported, so TLS works only where adbd already accepts
+ * DiPlay's key.
  *
  * adbd trusts a key once the driver approves it in the car's "Allow debugging?" dialog. Only
  * [connect] with `mayAsk = true` offers the key for approval. Background use never does, so the
@@ -24,7 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LocalAdb(
     private val key: KeyPair,
     private val host: String = "127.0.0.1",
-    private val port: Int = 5555,
+    private val port: Int = DEFAULT_PORT,
 ) : Closeable {
     enum class Access { READY, NOT_APPROVED, UNREACHABLE, UNSUPPORTED }
 
@@ -111,7 +114,7 @@ class LocalAdb(
 
     private fun handshake(mayAsk: Boolean): Access {
         var packet = receive()
-        if (packet.command == AdbPacket.STLS) return Access.UNSUPPORTED
+        if (packet.command == AdbPacket.STLS) return upgradeToTls()
         if (packet.command == AdbPacket.CNXN) return Access.READY
         if (packet.command != AdbPacket.AUTH || packet.arg0 != AdbPacket.AUTH_TOKEN) return Access.UNREACHABLE
         send(AdbPacket(AdbPacket.AUTH, AdbPacket.AUTH_SIGNATURE, 0, AdbKeys.sign(packet.payload, key.private)))
@@ -121,6 +124,27 @@ class LocalAdb(
         // adbd did not know the key: offer it, which opens the approval dialog on the car's screen.
         send(AdbPacket(AdbPacket.AUTH, AdbPacket.AUTH_PUBLIC_KEY, 0, AdbKeys.publicKeyMessage(key.public)))
         return awaitApproval()
+    }
+
+    /**
+     * Wireless debugging: after STLS both sides switch the same socket to TLS. adbd checks DiPlay's
+     * key from the certificate and then sends CNXN. A refused certificate means the key is not paired.
+     */
+    private fun upgradeToTls(): Access {
+        send(AdbPacket(AdbPacket.STLS, AdbPacket.STLS_VERSION, 0, ByteArray(0)))
+        val raw = socket ?: throw IOException("not connected")
+        val tls = try {
+            (AdbTls.context(key).socketFactory.createSocket(raw, host, port, true) as SSLSocket).apply {
+                soTimeout = READ_TIMEOUT_MS
+                startHandshake()
+            }
+        } catch (_: SSLException) {
+            return Access.UNSUPPORTED
+        }
+        socket = tls
+        input = BufferedInputStream(tls.inputStream)
+        output = tls.outputStream
+        return if (receive().command == AdbPacket.CNXN) Access.READY else Access.UNSUPPORTED
     }
 
     private fun awaitApproval(): Access {
@@ -166,11 +190,12 @@ class LocalAdb(
         nextStreamId = 1
     }
 
-    private companion object {
-        const val CONNECT_TIMEOUT_MS = 2_000
-        const val READ_TIMEOUT_MS = 5_000
-        const val APPROVAL_TIMEOUT_MS = 60_000
-        const val APPROVAL_RECHECK_MS = 1_000
-        const val MAX_COMMAND_TIMEOUT_MS = 30_000
+    companion object {
+        const val DEFAULT_PORT = 5555
+        private const val CONNECT_TIMEOUT_MS = 2_000
+        private const val READ_TIMEOUT_MS = 5_000
+        private const val APPROVAL_TIMEOUT_MS = 60_000
+        private const val APPROVAL_RECHECK_MS = 1_000
+        private const val MAX_COMMAND_TIMEOUT_MS = 30_000
     }
 }

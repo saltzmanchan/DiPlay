@@ -695,6 +695,8 @@
     <string name="side_panel_full_screen">⤢ 全屏</string>
     <string name="main_buffered_audio">缓冲音乐（实验性）</string>
     <string name="main_buffered_audio_description">支持此功能的应用（如 Apple Music）会提前发送约两分钟的音乐，因此短暂的 Wi-Fi 中断不会被听到。其他应用保持原样。会重新连接 CarPlay。</string>
+    <string name="settings_native_bluetooth_handoff">CarPlay 期间接管车机蓝牙电话和音乐（实验性）</string>
+    <string name="settings_native_bluetooth_handoff_description">无线 CarPlay 运行时，关闭车机自带的蓝牙免提和蓝牙音乐与这部 iPhone 的连接，来电只在 CarPlay 中响铃；CarPlay 结束后自动恢复。需要车机的 adb 以 root 运行且无需配对（例如哪吒 L）。下次连接时生效。</string>
     <string name="settings_car_bluetooth_audio">通过车辆蓝牙播放 CarPlay 音频（实验性）</string>
     <string name="settings_car_bluetooth_audio_description">DiPlay 不向 iPhone 提供 CarPlay 音频，因此音乐、导航和通话应通过 iPhone 与车辆的蓝牙连接传输。请保持 iPhone 与车辆配对，并将车辆音源设为蓝牙。如果声音改从 iPhone 播放，请关闭此选项。会重新连接 CarPlay。</string>
     <string name="call_echo_cancellation">通话回声消除（实验性）</string>

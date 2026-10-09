@@ -22,6 +22,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import com.shilapi.xcertplay.airplay.AirPlayListenerIdentity
+import com.shilapi.xcertplay.bluetooth.NativeBluetoothHandoff
 import com.shilapi.xcertplay.airplay.AirPlayTcpAccepted
 import com.shilapi.xcertplay.airplay.AirPlayConfig
 import com.shilapi.xcertplay.airplay.AirPlayContact
@@ -169,6 +170,7 @@ class CarPlayController(
             "A location provider is required when location reporting is enabled"
         }
         WifiScanPause.restoreIfNeeded(context.applicationContext)
+        NativeBluetoothHandoff.restore(context.applicationContext)
         BydNavigationOutputs.start(context.applicationContext)
         BydNavigationOutputs.setClusterStreamControl(::applyClusterUi)
     }
@@ -261,6 +263,7 @@ class CarPlayController(
     @Volatile private var vpnService: CarPlayVpnService? = null
     @Volatile private var vpnBound = false
     private val wirelessHandoffRequested = AtomicBoolean(false)
+    @Volatile private var wirelessIphoneAddress: String? = null
     private val wirelessTunnelReady = AtomicBoolean(false)
     private val wirelessActiveReported = AtomicBoolean(false)
     /** Set when the handoff fell back and kept Bluetooth as the only iAP2 channel. */
@@ -1215,6 +1218,7 @@ class CarPlayController(
                 ?: throw IOException("Bluetooth adapter is unavailable")
             if (!adapter.isEnabled) throw IOException("Bluetooth is not enabled")
             val device = selectWirelessBluetoothDevice(adapter)
+            wirelessIphoneAddress = device.address
             val hostBluetoothMac = accessoryBluetoothMac(adapter)
             debugLog(
                 "wireless selected Bluetooth target name=${device.name ?: "unknown"} " +
@@ -1607,6 +1611,10 @@ class CarPlayController(
                     debugLog("wireless handoff ready; closing Bluetooth bootstrap transport")
                     closeBluetoothBootstrapTransport()
                     onStatus(CarPlayStatus.WirelessActive, generation)
+                    // Car-Bluetooth audio mode plays CarPlay sound over these same links.
+                    if (!airPlayConfig.disableAudioOutput) {
+                        wirelessIphoneAddress?.let { NativeBluetoothHandoff.release(appContext, it) }
+                    }
                 }
             },
             "xcertplay-wireless-handoff",
@@ -2298,6 +2306,7 @@ class CarPlayController(
             if (activeTunnel != null) closeBestEffort("tunneled iAP2 link") { activeTunnel.close() }
 
             closeBluetoothBootstrapTransport()
+            NativeBluetoothHandoff.restore(appContext)
 
             val activeBonjour = bonjour
             bonjour = null

@@ -635,6 +635,8 @@
     <string name="side_panel_full_screen">⤢ Pantalla completa</string>
     <string name="main_buffered_audio">Música con búfer (experimental)</string>
     <string name="main_buffered_audio_description">Las apps compatibles, como Apple Music, envían hasta unos dos minutos de música por adelantado, así que los cortes breves del Wi-Fi no se oyen. Las demás apps siguen igual. Reconecta CarPlay.</string>
+    <string name="settings_native_bluetooth_handoff">Ceder las llamadas y la música Bluetooth del coche a CarPlay (experimental)</string>
+    <string name="settings_native_bluetooth_handoff_description">Mientras CarPlay inalámbrico está activo, desactiva el manos libres y la música Bluetooth propios del coche para ese iPhone, de modo que las llamadas solo suenan en CarPlay. Vuelven al terminar CarPlay. Requiere una unidad principal cuyo adb funcione como root sin emparejamiento, como el Neta L. Se aplica en la próxima conexión.</string>
     <string name="settings_car_bluetooth_audio">Audio de CarPlay por el Bluetooth del coche (experimental)</string>
     <string name="settings_car_bluetooth_audio_description">DiPlay no ofrece audio de CarPlay al iPhone, así que la música, la navegación y las llamadas deberían ir por la conexión Bluetooth del iPhone con el coche. Mantén el iPhone emparejado con el coche y elige Bluetooth como fuente de audio del coche. Si el sonido sale por el iPhone, desactiva esta opción. Reconecta CarPlay.</string>
     <string name="call_echo_cancellation">Cancelación de eco en llamadas (experimental)</string>

@@ -1661,6 +1661,12 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 AirPlayPersistence.saveCarBluetoothAudio(this, it)
                 reconnectIfRunning()
             }
+            toggle(card, getString(R.string.settings_native_bluetooth_handoff),
+                getString(R.string.settings_native_bluetooth_handoff_description),
+                com.shilapi.xcertplay.bluetooth.NativeBluetoothHandoff.enabled(this)) {
+                com.shilapi.xcertplay.bluetooth.NativeBluetoothHandoff.setEnabled(this, it)
+                if (it) markReconnectNeeded()
+            }
         }
         filteredSection(content, SettingsSection.CAR_BUTTON,
             getString(R.string.car_button_in_carplay), R.drawable.ic_dp_car) { card -> carButtonCard = card; carButtonControls(card) }
