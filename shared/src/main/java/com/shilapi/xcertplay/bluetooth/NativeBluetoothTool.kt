@@ -1,6 +1,7 @@
 package com.shilapi.xcertplay.bluetooth
 
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.content.ComponentName
 import android.content.Intent
 import android.os.IBinder
@@ -32,6 +33,11 @@ object NativeBluetoothTool {
             println("${NativeBluetoothProtocol.HEADER}|invalid|0|0")
             return
         }
+        val result = apply(action, address)
+        println(NativeBluetoothProtocol.line(action, result.hfp, result.a2dpSink))
+    }
+
+    internal fun apply(action: NativeBluetoothProtocol.Action, address: String): NativeBluetoothProtocol.Result {
         val device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address)
         val results = PROFILES.map { (descriptor, component) ->
             val service = profile(descriptor, component) ?: return@map false
@@ -48,7 +54,16 @@ object NativeBluetoothTool {
                 }
             }
         }
-        println(NativeBluetoothProtocol.line(action, results[0], results[1]))
+        if (action == NativeBluetoothProtocol.Action.FORBID) disconnectDevice(device)
+        return NativeBluetoothProtocol.Result(hfp = results[0], a2dpSink = results[1])
+    }
+
+    private fun disconnectDevice(device: BluetoothDevice) {
+        runCatching {
+            BluetoothDevice::class.java.methods.firstOrNull {
+                it.name == "disconnect" && it.parameterTypes.isEmpty()
+            }?.invoke(device)
+        }
     }
 
     private fun profile(descriptor: String, component: String): Any? = runCatching {
@@ -88,7 +103,7 @@ internal object NativeBluetoothProtocol {
         require(validAddress(address))
         val quoted = "'" + apk.replace("'", "'\"'\"'") + "'"
         val tool = "app_process /system/bin ${NativeBluetoothTool::class.java.name} ${action.word} $address"
-        return if (root) "CLASSPATH=$quoted $tool" else "su 0 env CLASSPATH=$quoted $tool"
+        return if (root) "CLASSPATH=$quoted $tool" else "su -c \"env CLASSPATH=$quoted $tool\""
     }
 
     fun line(action: Action, hfp: Boolean, a2dpSink: Boolean): String =

@@ -35,6 +35,7 @@ internal object AdbTls {
     private const val ALIAS = "diplay"
     private const val DAY_MILLIS = 24L * 60 * 60 * 1000
     private const val TLS_PORT_PROPERTY = "service.adb.tls.port"
+    private const val TCP_PORT_PROPERTY = "service.adb.tcp.port"
 
     fun context(key: KeyPair): SSLContext {
         val chain = arrayOf(selfSignedCertificate(key))
@@ -44,8 +45,18 @@ internal object AdbTls {
     }
 
     /** The port adbd listens on for wireless debugging; it changes whenever adbd restarts. */
-    fun wirelessDebuggingPort(): Int? = runCatching {
-        val process = ProcessBuilder("getprop", TLS_PORT_PROPERTY).redirectErrorStream(true).start()
+    fun wirelessDebuggingPort(): Int? = portProperty(TLS_PORT_PROPERTY)
+
+    fun candidatePorts(): List<Int> {
+        val ports = LinkedHashSet<Int>()
+        wirelessDebuggingPort()?.let { ports += it }
+        portProperty(TCP_PORT_PROPERTY)?.let { ports += it }
+        ports += LocalAdb.DEFAULT_PORT
+        return ports.toList()
+    }
+
+    private fun portProperty(name: String): Int? = runCatching {
+        val process = ProcessBuilder("getprop", name).redirectErrorStream(true).start()
         val text = process.inputStream.bufferedReader().use { it.readText() }
         process.waitFor()
         text.trim().toIntOrNull()?.takeIf { it in 1..65_535 }

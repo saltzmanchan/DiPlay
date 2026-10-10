@@ -22,8 +22,8 @@ class NativeBluetoothProtocolTest {
     @Test
     fun shellCommandEscalatesWithSu() {
         val command = NativeBluetoothProtocol.command("/a.apk", NativeBluetoothProtocol.Action.ALLOW, address, root = false)
-        assertTrue(command.startsWith("su 0 env CLASSPATH='/a.apk' app_process "))
-        assertTrue(command.endsWith(" allow $address"))
+        assertTrue(command.startsWith("su -c \"env CLASSPATH='/a.apk' app_process "))
+        assertTrue(command.endsWith(" allow $address\""))
     }
 
     @Test(expected = IllegalArgumentException::class)

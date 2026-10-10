@@ -264,6 +264,7 @@ class CarPlayController(
     @Volatile private var vpnBound = false
     private val wirelessHandoffRequested = AtomicBoolean(false)
     @Volatile private var wirelessIphoneAddress: String? = null
+    private val nativeBluetoothReleased = AtomicBoolean(false)
     private val wirelessTunnelReady = AtomicBoolean(false)
     private val wirelessActiveReported = AtomicBoolean(false)
     /** Set when the handoff fell back and kept Bluetooth as the only iAP2 channel. */
@@ -617,6 +618,7 @@ class CarPlayController(
                 try {
                     if (config.transport == CarPlayTransport.WIRELESS) {
                         closeBestEffort("wireless stack") { closeWirelessStack(service) }
+                        NativeBluetoothHandoff.restore(appContext)
                         closeBestEffort("Wi-Fi scan pause") { wifiScanPause?.close() }
                         wifiScanPause = null
                     } else {
@@ -1096,6 +1098,7 @@ class CarPlayController(
             availabilityPollGeneration.incrementAndGet()
             phase = Phase.WIRELESS
             wirelessHandoffRequested.set(false)
+            nativeBluetoothReleased.set(false)
             wirelessTunnelReady.set(false)
             wirelessActiveReported.set(false)
             wirelessHandoffFellBack.set(false)
@@ -1538,15 +1541,18 @@ class CarPlayController(
             }
 
             override fun onSessionActive(session: AirPlaySession) {
-                if (isStaleWirelessRun(generation) || !watchdog.sessionEstablished()) return
-                wirelessDiagnostics?.let {
-                    it.sessionActive()
-                    it.close()
+                if (isStaleWirelessRun(generation)) return
+                if (watchdog.sessionEstablished()) {
+                    wirelessDiagnostics?.let {
+                        it.sessionActive()
+                        it.close()
+                    }
+                    wirelessConnectionProof.activate(generation, session)
                 }
-                wirelessConnectionProof.activate(generation, session)
-                // Keep wirelessActiveReported false until maybeCompleteWirelessHandoff() closes
-                // the Bluetooth bootstrap after the tunneled iAP2 channel is ready.
                 sessionListener.onSessionActive(session)
+                // The iPhone often never sends disableBluetooth on this head unit. CarPlay is already
+                // on Wi-Fi here, so drop the car's own Bluetooth without waiting for that command.
+                dropCarBluetoothAfterCarPlay(generation)
             }
 
             override fun onSessionEnded(session: AirPlaySession) {
@@ -1557,15 +1563,19 @@ class CarPlayController(
 
             override fun onVideoFrameRendered(session: AirPlaySession) {
                 if (isStaleWirelessRun(generation) || activeSession !== session) return
-                if (!watchdog.sessionEstablished()) return
-                wirelessConnectionProof.rendered(generation, session)
                 val firstFrame = synchronized(this) {
                     if (reportedFrameSession === session) false else {
                         reportedFrameSession = session
                         true
                     }
                 }
-                if (firstFrame) uiListener?.onVideoFrameRendered(session)
+                if (watchdog.sessionEstablished()) {
+                    wirelessConnectionProof.rendered(generation, session)
+                }
+                if (firstFrame) {
+                    uiListener?.onVideoFrameRendered(session)
+                    dropCarBluetoothAfterCarPlay(generation)
+                }
             }
 
             override fun onDebugLog(message: String) {
@@ -1611,10 +1621,7 @@ class CarPlayController(
                     debugLog("wireless handoff ready; closing Bluetooth bootstrap transport")
                     closeBluetoothBootstrapTransport()
                     onStatus(CarPlayStatus.WirelessActive, generation)
-                    // Car-Bluetooth audio mode plays CarPlay sound over these same links.
-                    if (!airPlayConfig.disableAudioOutput) {
-                        wirelessIphoneAddress?.let { NativeBluetoothHandoff.release(appContext, it) }
-                    }
+                    releaseCarBluetoothProfiles()
                 }
             },
             "xcertplay-wireless-handoff",
@@ -1622,6 +1629,40 @@ class CarPlayController(
             isDaemon = true
             start()
         }
+    }
+
+    /**
+     * After CarPlay is on Wi-Fi, close DiPlay's RFCOMM bootstrap and the car's own HFP/A2DP. Waiting
+     * for `disableBluetooth` left both links up on the Neta L.
+     */
+    private fun dropCarBluetoothAfterCarPlay(generation: Int) {
+        if (!nativeBluetoothReleased.compareAndSet(false, true)) return
+        wirelessHandoffRequested.compareAndSet(false, true)
+        Thread(
+            {
+                synchronized(wirelessResourceLock) {
+                    if (isStaleWirelessRun(generation)) {
+                        nativeBluetoothReleased.set(false)
+                        return@Thread
+                    }
+                    if (wirelessActiveReported.compareAndSet(false, true)) {
+                        debugLog("wireless CarPlay active; closing Bluetooth bootstrap and car profiles")
+                        closeBluetoothBootstrapTransport()
+                        onStatus(CarPlayStatus.WirelessActive, generation)
+                    }
+                    releaseCarBluetoothProfiles()
+                }
+            },
+            "diplay-native-bt-handoff",
+        ).apply {
+            isDaemon = true
+            start()
+        }
+    }
+
+    private fun releaseCarBluetoothProfiles() {
+        if (airPlayConfig.disableAudioOutput) return
+        wirelessIphoneAddress?.let { NativeBluetoothHandoff.release(appContext, it) }
     }
 
     private fun keepBluetoothControlAlive(generation: Int): Boolean = synchronized(wirelessResourceLock) {
@@ -2306,7 +2347,6 @@ class CarPlayController(
             if (activeTunnel != null) closeBestEffort("tunneled iAP2 link") { activeTunnel.close() }
 
             closeBluetoothBootstrapTransport()
-            NativeBluetoothHandoff.restore(appContext)
 
             val activeBonjour = bonjour
             bonjour = null
@@ -2318,6 +2358,7 @@ class CarPlayController(
             wirelessRuntimeIdentification = null
             wirelessAirPlayEndpoint = null
             wirelessHandoffRequested.set(false)
+            nativeBluetoothReleased.set(false)
             wirelessTunnelReady.set(false)
             wirelessActiveReported.set(false)
             wirelessHandoffFellBack.set(false)
