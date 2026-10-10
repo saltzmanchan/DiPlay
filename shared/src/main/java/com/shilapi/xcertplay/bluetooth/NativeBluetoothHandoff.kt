@@ -22,6 +22,8 @@ object NativeBluetoothHandoff {
     private const val KEY_ENABLED = "enabled"
     private const val KEY_RELEASED = "released_addresses"
     private const val TOOL_TIMEOUT_MILLIS = 15_000
+    private const val ROOT_POLL_ATTEMPTS = 6
+    private const val ROOT_POLL_INTERVAL_MILLIS = 500L
     private val SU_BINARIES = listOf("su", "/system/xbin/su", "/system/bin/su", "/sbin/su")
 
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "diplay-native-bt").apply { isDaemon = true } }
@@ -138,14 +140,27 @@ object NativeBluetoothHandoff {
                     Log.w(TAG, "ADB port=$port access=$access")
                     return@use
                 }
-                val root = adb.shell("id -u") == "0"
-                if (!root && adb.shell("su -c id -u") != "0") {
+                val command = rootedCommand(adb, asRoot, throughSu)
+                if (command == null) {
                     Log.w(TAG, "ADB port=$port has no root")
                     return@use
                 }
-                Log.i(TAG, "ADB port=$port root=$root")
-                return adb.shell(if (root) asRoot else throughSu, TOOL_TIMEOUT_MILLIS)
+                return adb.shell(command, TOOL_TIMEOUT_MILLIS)
             }
+        }
+        return null
+    }
+
+    /**
+     * 哪吒美式 does not treat a non-root shell as fatal: adbd on this head unit may still be settling
+     * into root (service.adb.root=1), so it polls `id -u` with 500ms retries before giving up. Mirror
+     * that here and pick the command form (direct root vs `su -c`) that first reports uid 0.
+     */
+    private fun rootedCommand(adb: LocalAdb, asRoot: String, throughSu: String): String? {
+        repeat(ROOT_POLL_ATTEMPTS) { attempt ->
+            if (adb.shell("id -u") == "0") return asRoot
+            if (adb.shell("su -c id -u") == "0") return throughSu
+            if (attempt < ROOT_POLL_ATTEMPTS - 1) Thread.sleep(ROOT_POLL_INTERVAL_MILLIS)
         }
         return null
     }
